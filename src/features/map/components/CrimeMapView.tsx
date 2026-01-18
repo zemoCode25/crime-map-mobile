@@ -7,26 +7,37 @@ Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN ?? "");
 interface MapViewProps {
   centerCoordinate?: [number, number];
   zoomLevel?: number;
+  pitch?: number;
   children?: React.ReactNode;
 }
 
 export function CrimeMapView({
   centerCoordinate = [121.0244, 14.4166], // Muntinlupa City default
   zoomLevel = 14,
+  pitch = 45,
   children,
 }: MapViewProps) {
   return (
     <View style={styles.container}>
       <Mapbox.MapView
         style={styles.map}
-        styleURL="mapbox://styles/mapbox/light-v11"
+        styleURL="mapbox://styles/mapbox/outdoors-v12"
         zoomEnabled={true}
         scrollEnabled={true}
         rotateEnabled={true}
       >
+        <Mapbox.RasterDemSource
+          id="terrain-source"
+          url="mapbox://mapbox.mapbox-terrain-dem-v1"
+          tileSize={512}
+          maxZoomLevel={14}
+        >
+          <Mapbox.Terrain style={{ exaggeration: 1.15 }} />
+        </Mapbox.RasterDemSource>
         <Mapbox.Camera
           zoomLevel={zoomLevel}
           centerCoordinate={centerCoordinate}
+          pitch={pitch}
           animationMode="flyTo"
           animationDuration={2000}
         />
