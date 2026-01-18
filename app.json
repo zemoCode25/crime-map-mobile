@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "crime-map-mobile",
-    "slug": "crime-map-mobile",
+    "slug": "crime-map-mobile-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -14,9 +14,11 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.r4lphbryan.crimemapmobile"
     },
     "android": {
+      "package": "com.r4lphbryan.crimemapmobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -30,10 +32,23 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "@rnmapbox/maps",
+        {
+          "RNMapboxMapsDownloadToken": "sk.eyJ1IjoicmFscGgtYnJ5YW4iLCJhIjoiY21rNjBvMXV6MGxwcDNncjI3dXh5aXFweSJ9.bSx-1pKKXQrMfSz7FHqVAQ"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "28eb4879-ab36-4b9d-8108-efe05b398e19"
+      }
+    },
+    "owner": "r4lphbryan"
   }
 }

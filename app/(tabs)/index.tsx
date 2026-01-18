@@ -1,14 +1,26 @@
-import { StyleSheet } from 'react-native';
+import Mapbox from "@rnmapbox/maps";
+import { StyleSheet, View } from "react-native";
 
-import EditScreenInfo from '@/components/EditScreenInfo';
-import { Text, View } from '@/components/Themed';
+// Initialize Mapbox with your access token
+Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN ?? "");
 
-export default function TabOneScreen() {
+export default function MapScreen() {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tab One</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/(tabs)/index.tsx" />
+      <Mapbox.MapView
+        style={styles.map}
+        styleURL="mapbox://styles/mapbox/dark-v11"
+        zoomEnabled={true}
+        scrollEnabled={true}
+        rotateEnabled={true}
+      >
+        <Mapbox.Camera
+          zoomLevel={14}
+          centerCoordinate={[121.0244, 14.4166]} // Muntinlupa City, Philippines
+          animationMode="flyTo"
+          animationDuration={2000}
+        />
+      </Mapbox.MapView>
     </View>
   );
 }
@@ -16,16 +28,8 @@ export default function TabOneScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
+  map: {
+    flex: 1,
   },
 });
