@@ -1,33 +1,114 @@
 import { CrimeMapView } from "@/src/features/map";
-import { User } from "lucide-react-native";
-import { Image, StyleSheet, TextInput, View } from "react-native";
+import { supabase } from "@/src/lib/supabase";
+import { useAppTheme } from "@/src/lib/theme";
+import { router } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
+  const { colors, theme } = useAppTheme();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarInitial, setAvatarInitial] = useState("U");
+
+  const setAvatarFromUser = (user?: SupabaseUser | null) => {
+    const metadata = user?.user_metadata ?? {};
+    const urlCandidate =
+      (typeof metadata.avatar_url === "string" && metadata.avatar_url) ||
+      (typeof metadata.picture === "string" && metadata.picture) ||
+      (typeof metadata.avatar === "string" && metadata.avatar) ||
+      null;
+    const nameCandidate =
+      (typeof metadata.full_name === "string" && metadata.full_name) ||
+      (typeof metadata.name === "string" && metadata.name) ||
+      user?.email ||
+      "User";
+    const initial = nameCandidate.trim().charAt(0).toUpperCase() || "U";
+
+    setAvatarUrl(urlCandidate);
+    setAvatarInitial(initial);
+  };
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!isActive) return;
+      setAvatarFromUser(data.user);
+    };
+
+    loadUser();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setAvatarFromUser(session?.user ?? null);
+      },
+    );
+
+    return () => {
+      isActive = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleProfilePress = () => {
+    router.push("/(tabs)/profile");
+  };
+
+  const mapStyleURL = useMemo(
+    () =>
+      theme === "dark"
+        ? "mapbox://styles/mapbox/dark-v11"
+        : "mapbox://styles/mapbox/outdoors-v12",
+    [theme],
+  );
 
   return (
-    <View style={styles.container}>
-      <CrimeMapView />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <CrimeMapView styleURL={mapStyleURL} />
       <View
         pointerEvents="box-none"
         style={[styles.topBar, { paddingTop: insets.top + 12 }]}
       >
-        <View style={styles.searchPill}>
+        <View
+          style={[
+            styles.searchPill,
+            { backgroundColor: colors.surface, shadowColor: colors.shadow },
+          ]}
+        >
           <Image
             source={require("../../assets/images/icon.png")}
             style={styles.logo}
           />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: colors.text }]}
             placeholder="Search places"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.mutedText}
             autoCapitalize="none"
             autoCorrect={false}
           />
-          <View style={styles.avatar}>
-            <User size={18} color="#111827" />
-          </View>
+          <Pressable
+            onPress={handleProfilePress}
+            style={[styles.avatar, { backgroundColor: colors.avatar }]}
+          >
+            {avatarUrl ? (
+              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+            ) : (
+              <Text style={[styles.avatarInitial, { color: colors.text }]}>
+                {avatarInitial}
+              </Text>
+            )}
+          </Pressable>
         </View>
       </View>
     </View>
@@ -44,16 +125,15 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     paddingHorizontal: 16,
+    zIndex: 10,
   },
   searchPill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
     borderRadius: 28,
     height: 56,
     paddingHorizontal: 14,
     gap: 12,
-    shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.12,
     shadowRadius: 20,
@@ -68,14 +148,21 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: "Inter_500Medium",
     fontSize: 15,
-    color: "#111827",
   },
   avatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#F3F4F6",
     alignItems: "center",
     justifyContent: "center",
+  },
+  avatarImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  avatarInitial: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 14,
   },
 });

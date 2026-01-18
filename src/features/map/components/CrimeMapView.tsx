@@ -8,6 +8,7 @@ interface MapViewProps {
   centerCoordinate?: [number, number];
   zoomLevel?: number;
   pitch?: number;
+  styleURL?: string;
   children?: React.ReactNode;
 }
 
@@ -15,13 +16,14 @@ export function CrimeMapView({
   centerCoordinate = [121.0244, 14.4166], // Muntinlupa City default
   zoomLevel = 14,
   pitch = 45,
+  styleURL,
   children,
 }: MapViewProps) {
   return (
     <View style={styles.container}>
       <Mapbox.MapView
         style={styles.map}
-        styleURL="mapbox://styles/mapbox/outdoors-v12"
+        styleURL={styleURL ?? "mapbox://styles/mapbox/outdoors-v12"}
         zoomEnabled={true}
         scrollEnabled={true}
         rotateEnabled={true}
