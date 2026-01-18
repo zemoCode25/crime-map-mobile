@@ -1,3 +1,4 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, router } from "expo-router";
 import {
   ArrowLeft,
@@ -9,6 +10,7 @@ import {
   User,
 } from "lucide-react-native";
 import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -21,20 +23,60 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { z } from "zod";
+
+// Validation schema
+const signupSchema = z
+  .object({
+    fullName: z
+      .string()
+      .min(1, "Full name is required")
+      .min(2, "Name must be at least 2 characters"),
+    email: z
+      .string()
+      .min(1, "Email is required")
+      .email("Please enter a valid email"),
+    password: z
+      .string()
+      .min(1, "Password is required")
+      .min(8, "Password must be at least 8 characters")
+      .regex(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+        "Password must contain uppercase, lowercase, and number",
+      ),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
+
+type SignupFormData = z.infer<typeof signupSchema>;
 
 export default function SignupScreen() {
   const insets = useSafeAreaInsets();
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignup = async () => {
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignupFormData>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      fullName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
+
+  const onSubmit = async (data: SignupFormData) => {
     setIsLoading(true);
-    // TODO: Implement actual signup
+    console.log("Signup data:", data);
+    // TODO: Implement actual signup with Supabase
     setTimeout(() => {
       setIsLoading(false);
       router.replace("/(tabs)");
@@ -81,90 +123,168 @@ export default function SignupScreen() {
           {/* Full Name Input */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Full Name</Text>
-            <View style={styles.inputWrapper}>
-              <User size={20} color="#9CA3AF" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your full name"
-                placeholderTextColor="#9CA3AF"
-                value={fullName}
-                onChangeText={setFullName}
-                autoCapitalize="words"
-                autoComplete="name"
-              />
-            </View>
+            <Controller
+              control={control}
+              name="fullName"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    errors.fullName && styles.inputWrapperError,
+                  ]}
+                >
+                  <User
+                    size={20}
+                    color={errors.fullName ? "#EF4444" : "#9CA3AF"}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your full name"
+                    placeholderTextColor="#9CA3AF"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    autoCapitalize="words"
+                    autoComplete="name"
+                  />
+                </View>
+              )}
+            />
+            {errors.fullName && (
+              <Text style={styles.errorText}>{errors.fullName.message}</Text>
+            )}
           </View>
 
           {/* Email Input */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email</Text>
-            <View style={styles.inputWrapper}>
-              <Mail size={20} color="#9CA3AF" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your email"
-                placeholderTextColor="#9CA3AF"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-              />
-            </View>
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    errors.email && styles.inputWrapperError,
+                  ]}
+                >
+                  <Mail
+                    size={20}
+                    color={errors.email ? "#EF4444" : "#9CA3AF"}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your email"
+                    placeholderTextColor="#9CA3AF"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                  />
+                </View>
+              )}
+            />
+            {errors.email && (
+              <Text style={styles.errorText}>{errors.email.message}</Text>
+            )}
           </View>
 
           {/* Password Input */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Password</Text>
-            <View style={styles.inputWrapper}>
-              <Lock size={20} color="#9CA3AF" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Create a password"
-                placeholderTextColor="#9CA3AF"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-              />
-              <Pressable
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeButton}
-              >
-                {showPassword ? (
-                  <EyeOff size={20} color="#9CA3AF" />
-                ) : (
-                  <Eye size={20} color="#9CA3AF" />
-                )}
-              </Pressable>
-            </View>
+            <Controller
+              control={control}
+              name="password"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    errors.password && styles.inputWrapperError,
+                  ]}
+                >
+                  <Lock
+                    size={20}
+                    color={errors.password ? "#EF4444" : "#9CA3AF"}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Create a password"
+                    placeholderTextColor="#9CA3AF"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                  />
+                  <Pressable
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.eyeButton}
+                  >
+                    {showPassword ? (
+                      <EyeOff size={20} color="#9CA3AF" />
+                    ) : (
+                      <Eye size={20} color="#9CA3AF" />
+                    )}
+                  </Pressable>
+                </View>
+              )}
+            />
+            {errors.password && (
+              <Text style={styles.errorText}>{errors.password.message}</Text>
+            )}
           </View>
 
           {/* Confirm Password Input */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Confirm Password</Text>
-            <View style={styles.inputWrapper}>
-              <Lock size={20} color="#9CA3AF" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Confirm your password"
-                placeholderTextColor="#9CA3AF"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirmPassword}
-                autoCapitalize="none"
-              />
-              <Pressable
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                style={styles.eyeButton}
-              >
-                {showConfirmPassword ? (
-                  <EyeOff size={20} color="#9CA3AF" />
-                ) : (
-                  <Eye size={20} color="#9CA3AF" />
-                )}
-              </Pressable>
-            </View>
+            <Controller
+              control={control}
+              name="confirmPassword"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    errors.confirmPassword && styles.inputWrapperError,
+                  ]}
+                >
+                  <Lock
+                    size={20}
+                    color={errors.confirmPassword ? "#EF4444" : "#9CA3AF"}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Confirm your password"
+                    placeholderTextColor="#9CA3AF"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    secureTextEntry={!showConfirmPassword}
+                    autoCapitalize="none"
+                  />
+                  <Pressable
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={styles.eyeButton}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff size={20} color="#9CA3AF" />
+                    ) : (
+                      <Eye size={20} color="#9CA3AF" />
+                    )}
+                  </Pressable>
+                </View>
+              )}
+            />
+            {errors.confirmPassword && (
+              <Text style={styles.errorText}>
+                {errors.confirmPassword.message}
+              </Text>
+            )}
           </View>
 
           {/* Terms */}
@@ -177,7 +297,7 @@ export default function SignupScreen() {
           {/* Signup Button */}
           <TouchableOpacity
             style={[styles.button, isLoading && styles.buttonDisabled]}
-            onPress={handleSignup}
+            onPress={handleSubmit(onSubmit)}
             disabled={isLoading}
             activeOpacity={0.8}
           >
@@ -286,6 +406,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 52,
   },
+  inputWrapperError: {
+    borderColor: "#EF4444",
+    backgroundColor: "#FEF2F2",
+  },
   inputIcon: {
     marginRight: 12,
   },
@@ -297,6 +421,13 @@ const styles = StyleSheet.create({
   },
   eyeButton: {
     padding: 4,
+  },
+  errorText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    color: "#EF4444",
+    marginTop: 6,
+    marginLeft: 4,
   },
   terms: {
     fontFamily: "Inter_400Regular",

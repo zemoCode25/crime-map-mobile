@@ -1,6 +1,8 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, router } from "expo-router";
 import { Eye, EyeOff, Lock, Mail, MapPin } from "lucide-react-native";
 import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -13,17 +15,43 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { z } from "zod";
+
+// Validation schema
+const loginSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email"),
+  password: z
+    .string()
+    .min(1, "Password is required")
+    .min(6, "Password must be at least 6 characters"),
+});
+
+type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async () => {
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
-    // TODO: Implement actual login
+    console.log("Login data:", data);
+    // TODO: Implement actual login with Supabase
     setTimeout(() => {
       setIsLoading(false);
       router.replace("/(tabs)");
@@ -61,46 +89,84 @@ export default function LoginScreen() {
           {/* Email Input */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email</Text>
-            <View style={styles.inputWrapper}>
-              <Mail size={20} color="#9CA3AF" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your email"
-                placeholderTextColor="#9CA3AF"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-              />
-            </View>
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    errors.email && styles.inputWrapperError,
+                  ]}
+                >
+                  <Mail
+                    size={20}
+                    color={errors.email ? "#EF4444" : "#9CA3AF"}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your email"
+                    placeholderTextColor="#9CA3AF"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                  />
+                </View>
+              )}
+            />
+            {errors.email && (
+              <Text style={styles.errorText}>{errors.email.message}</Text>
+            )}
           </View>
 
           {/* Password Input */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Password</Text>
-            <View style={styles.inputWrapper}>
-              <Lock size={20} color="#9CA3AF" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your password"
-                placeholderTextColor="#9CA3AF"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-              />
-              <Pressable
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeButton}
-              >
-                {showPassword ? (
-                  <EyeOff size={20} color="#9CA3AF" />
-                ) : (
-                  <Eye size={20} color="#9CA3AF" />
-                )}
-              </Pressable>
-            </View>
+            <Controller
+              control={control}
+              name="password"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    errors.password && styles.inputWrapperError,
+                  ]}
+                >
+                  <Lock
+                    size={20}
+                    color={errors.password ? "#EF4444" : "#9CA3AF"}
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your password"
+                    placeholderTextColor="#9CA3AF"
+                    value={value}
+                    onChangeText={onChange}
+                    onBlur={onBlur}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                  />
+                  <Pressable
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.eyeButton}
+                  >
+                    {showPassword ? (
+                      <EyeOff size={20} color="#9CA3AF" />
+                    ) : (
+                      <Eye size={20} color="#9CA3AF" />
+                    )}
+                  </Pressable>
+                </View>
+              )}
+            />
+            {errors.password && (
+              <Text style={styles.errorText}>{errors.password.message}</Text>
+            )}
           </View>
 
           {/* Forgot Password */}
@@ -111,7 +177,7 @@ export default function LoginScreen() {
           {/* Login Button */}
           <TouchableOpacity
             style={[styles.button, isLoading && styles.buttonDisabled]}
-            onPress={handleLogin}
+            onPress={handleSubmit(onSubmit)}
             disabled={isLoading}
             activeOpacity={0.8}
           >
@@ -211,6 +277,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 52,
   },
+  inputWrapperError: {
+    borderColor: "#EF4444",
+    backgroundColor: "#FEF2F2",
+  },
   inputIcon: {
     marginRight: 12,
   },
@@ -222,6 +292,13 @@ const styles = StyleSheet.create({
   },
   eyeButton: {
     padding: 4,
+  },
+  errorText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    color: "#EF4444",
+    marginTop: 6,
+    marginLeft: 4,
   },
   forgotPassword: {
     alignSelf: "flex-end",
