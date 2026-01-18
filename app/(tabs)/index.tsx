@@ -1,4 +1,4 @@
-import { CrimeMapView } from "@/src/features/map";
+import { CrimeMapView, DraggableMarker } from "@/src/features/map";
 import { supabase } from "@/src/lib/supabase";
 import { useAppTheme } from "@/src/lib/theme";
 import { router } from "expo-router";
@@ -14,11 +14,17 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
+// Default marker position: Muntinlupa City center [longitude, latitude]
+const DEFAULT_MARKER_POSITION: [number, number] = [121.0244, 14.4166];
+
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
   const { colors, theme } = useAppTheme();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarInitial, setAvatarInitial] = useState("U");
+  const [markerPosition, setMarkerPosition] = useState<[number, number]>(
+    DEFAULT_MARKER_POSITION
+  );
 
   const setAvatarFromUser = (user?: SupabaseUser | null) => {
     const metadata = user?.user_metadata ?? {};
@@ -70,12 +76,22 @@ export default function MapScreen() {
       theme === "dark"
         ? "mapbox://styles/mapbox/dark-v11"
         : "mapbox://styles/mapbox/outdoors-v12",
-    [theme],
+    [theme]
   );
+
+  const handleMarkerDragEnd = (newPosition: [number, number]) => {
+    setMarkerPosition(newPosition);
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <CrimeMapView styleURL={mapStyleURL} />
+      <CrimeMapView styleURL={mapStyleURL}>
+        <DraggableMarker
+          id="user-marker"
+          coordinate={markerPosition}
+          onDragEnd={handleMarkerDragEnd}
+        />
+      </CrimeMapView>
       <View
         pointerEvents="box-none"
         style={[styles.topBar, { paddingTop: insets.top + 12 }]}
