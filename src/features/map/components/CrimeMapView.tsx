@@ -71,9 +71,11 @@ export function CrimeMapView({
           followUserMode={followUserMode}
           followZoomLevel={followZoomLevel}
         />
+        {/* Blue puck showing user's live location with heading indicator */}
         <Mapbox.UserLocation
-          renderMode={Mapbox.UserLocationRenderMode.Native}
+          visible={true}
           showsUserHeadingIndicator={true}
+          androidRenderMode="compass"
         />
         {children}
       </Mapbox.MapView>
