@@ -1,15 +1,18 @@
+import { GoogleLogo } from "@/src/components/GoogleLogo";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, router } from "expo-router";
 import {
   ArrowLeft,
+  Check,
   Eye,
   EyeOff,
   Lock,
   Mail,
   MapPin,
   User,
+  X,
 } from "lucide-react-native";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   KeyboardAvoidingView,
@@ -24,6 +27,19 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { z } from "zod";
+
+// Password requirements
+const passwordRequirements = [
+  { id: "length", label: "At least 8 characters", regex: /.{8,}/ },
+  { id: "uppercase", label: "One uppercase letter", regex: /[A-Z]/ },
+  { id: "lowercase", label: "One lowercase letter", regex: /[a-z]/ },
+  { id: "number", label: "One number", regex: /\d/ },
+  {
+    id: "special",
+    label: "One special character",
+    regex: /[!@#$%^&*(),.?":{}|<>]/,
+  },
+];
 
 // Validation schema
 const signupSchema = z
@@ -40,9 +56,12 @@ const signupSchema = z
       .string()
       .min(1, "Password is required")
       .min(8, "Password must be at least 8 characters")
+      .regex(/[A-Z]/, "Password must contain an uppercase letter")
+      .regex(/[a-z]/, "Password must contain a lowercase letter")
+      .regex(/\d/, "Password must contain a number")
       .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-        "Password must contain uppercase, lowercase, and number",
+        /[!@#$%^&*(),.?":{}|<>]/,
+        "Password must contain a special character",
       ),
     confirmPassword: z.string().min(1, "Please confirm your password"),
   })
@@ -53,6 +72,133 @@ const signupSchema = z
 
 type SignupFormData = z.infer<typeof signupSchema>;
 
+// Password strength meter component
+function PasswordStrengthMeter({ password }: { password: string }) {
+  const strength = useMemo(() => {
+    let score = 0;
+    passwordRequirements.forEach((req) => {
+      if (req.regex.test(password)) score++;
+    });
+    return score;
+  }, [password]);
+
+  const getStrengthLabel = () => {
+    if (password.length === 0) return { label: "", color: "#E5E7EB" };
+    if (strength <= 1) return { label: "Weak", color: "#EF4444" };
+    if (strength <= 2) return { label: "Fair", color: "#F97316" };
+    if (strength <= 3) return { label: "Good", color: "#EAB308" };
+    if (strength <= 4) return { label: "Strong", color: "#22C55E" };
+    return { label: "Excellent", color: "#16A34A" };
+  };
+
+  const strengthInfo = getStrengthLabel();
+
+  return (
+    <View style={strengthStyles.container}>
+      {/* Strength Bar */}
+      <View style={strengthStyles.barContainer}>
+        {[1, 2, 3, 4, 5].map((level) => (
+          <View
+            key={level}
+            style={[
+              strengthStyles.barSegment,
+              {
+                backgroundColor:
+                  password.length > 0 && strength >= level
+                    ? strengthInfo.color
+                    : "#E5E7EB",
+              },
+            ]}
+          />
+        ))}
+      </View>
+
+      {/* Strength Label */}
+      {password.length > 0 && (
+        <Text style={[strengthStyles.label, { color: strengthInfo.color }]}>
+          {strengthInfo.label}
+        </Text>
+      )}
+
+      {/* Requirements List */}
+      <View style={strengthStyles.requirementsList}>
+        {passwordRequirements.map((req) => {
+          const isMet = req.regex.test(password);
+          return (
+            <View key={req.id} style={strengthStyles.requirementRow}>
+              <View
+                style={[
+                  strengthStyles.checkCircle,
+                  {
+                    backgroundColor: isMet ? "#DCFCE7" : "#F3F4F6",
+                    borderColor: isMet ? "#22C55E" : "#E5E7EB",
+                  },
+                ]}
+              >
+                {isMet ? (
+                  <Check size={12} color="#22C55E" strokeWidth={3} />
+                ) : (
+                  <X size={12} color="#9CA3AF" strokeWidth={3} />
+                )}
+              </View>
+              <Text
+                style={[
+                  strengthStyles.requirementText,
+                  { color: isMet ? "#16A34A" : "#6B7280" },
+                ]}
+              >
+                {req.label}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const strengthStyles = StyleSheet.create({
+  container: {
+    marginTop: 12,
+  },
+  barContainer: {
+    flexDirection: "row",
+    gap: 4,
+    marginBottom: 8,
+  },
+  barSegment: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+  },
+  label: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 12,
+    textAlign: "right",
+    marginBottom: 12,
+  },
+  requirementsList: {
+    gap: 8,
+  },
+  requirementRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  checkCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+  },
+  requirementText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 13,
+  },
+});
+
 export default function SignupScreen() {
   const insets = useSafeAreaInsets();
   const [showPassword, setShowPassword] = useState(false);
@@ -62,6 +208,7 @@ export default function SignupScreen() {
   const {
     control,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
@@ -72,6 +219,8 @@ export default function SignupScreen() {
       confirmPassword: "",
     },
   });
+
+  const passwordValue = watch("password");
 
   const onSubmit = async (data: SignupFormData) => {
     setIsLoading(true);
@@ -200,43 +349,44 @@ export default function SignupScreen() {
               control={control}
               name="password"
               render={({ field: { onChange, onBlur, value } }) => (
-                <View
-                  style={[
-                    styles.inputWrapper,
-                    errors.password && styles.inputWrapperError,
-                  ]}
-                >
-                  <Lock
-                    size={20}
-                    color={errors.password ? "#EF4444" : "#9CA3AF"}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Create a password"
-                    placeholderTextColor="#9CA3AF"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                    secureTextEntry={!showPassword}
-                    autoCapitalize="none"
-                  />
-                  <Pressable
-                    onPress={() => setShowPassword(!showPassword)}
-                    style={styles.eyeButton}
+                <>
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      errors.password && styles.inputWrapperError,
+                    ]}
                   >
-                    {showPassword ? (
-                      <EyeOff size={20} color="#9CA3AF" />
-                    ) : (
-                      <Eye size={20} color="#9CA3AF" />
-                    )}
-                  </Pressable>
-                </View>
+                    <Lock
+                      size={20}
+                      color={errors.password ? "#EF4444" : "#9CA3AF"}
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Create a password"
+                      placeholderTextColor="#9CA3AF"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                    />
+                    <Pressable
+                      onPress={() => setShowPassword(!showPassword)}
+                      style={styles.eyeButton}
+                    >
+                      {showPassword ? (
+                        <EyeOff size={20} color="#9CA3AF" />
+                      ) : (
+                        <Eye size={20} color="#9CA3AF" />
+                      )}
+                    </Pressable>
+                  </View>
+                  {/* Password Strength Meter */}
+                  <PasswordStrengthMeter password={value} />
+                </>
               )}
             />
-            {errors.password && (
-              <Text style={styles.errorText}>{errors.password.message}</Text>
-            )}
           </View>
 
           {/* Confirm Password Input */}
@@ -315,7 +465,9 @@ export default function SignupScreen() {
 
           {/* Social Signup */}
           <TouchableOpacity style={styles.socialButton} activeOpacity={0.7}>
-            <Text style={styles.googleIcon}>G</Text>
+            <View style={styles.googleLogoContainer}>
+              <GoogleLogo size={20} />
+            </View>
             <Text style={styles.socialButtonText}>Continue with Google</Text>
           </TouchableOpacity>
         </View>
@@ -488,10 +640,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-  googleIcon: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 18,
-    color: "#4285F4",
+  googleLogoContainer: {
     marginRight: 12,
   },
   socialButtonText: {

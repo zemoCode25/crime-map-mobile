@@ -1,3 +1,4 @@
+import { GoogleLogo } from "@/src/components/GoogleLogo";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, router } from "expo-router";
 import { Eye, EyeOff, Lock, Mail, MapPin } from "lucide-react-native";
@@ -195,7 +196,9 @@ export default function LoginScreen() {
 
           {/* Social Login */}
           <TouchableOpacity style={styles.socialButton} activeOpacity={0.7}>
-            <Text style={styles.googleIcon}>G</Text>
+            <View style={styles.googleLogoContainer}>
+              <GoogleLogo size={20} />
+            </View>
             <Text style={styles.socialButtonText}>Continue with Google</Text>
           </TouchableOpacity>
         </View>
@@ -356,10 +359,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-  googleIcon: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 18,
-    color: "#4285F4",
+  googleLogoContainer: {
     marginRight: 12,
   },
   socialButtonText: {
