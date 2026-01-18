@@ -11,6 +11,6 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false, // Prevents issues with React Native
+    detectSessionInUrl: false,
   },
 });
