@@ -31,7 +31,7 @@ export function CrimeMapView({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1F2937",
+    backgroundColor: "#FFFFFF",
   },
   placeholder: {
     flex: 1,
@@ -42,20 +42,20 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 24,
-    color: "#FFFFFF",
+    color: "#111827",
     marginTop: 16,
   },
   subtitle: {
     fontFamily: "Inter_400Regular",
     fontSize: 14,
-    color: "#9CA3AF",
+    color: "#6B7280",
     marginTop: 8,
     textAlign: "center",
   },
   coordinates: {
     fontFamily: "Inter_400Regular",
     fontSize: 12,
-    color: "#6B7280",
+    color: "#9CA3AF",
     marginTop: 16,
   },
 });

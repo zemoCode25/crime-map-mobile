@@ -1,4 +1,6 @@
 import { GoogleLogo } from "@/src/components/GoogleLogo";
+import { signInWithGoogle } from "@/src/lib/auth";
+import { supabase } from "@/src/lib/supabase";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, router } from "expo-router";
 import { Eye, EyeOff, Lock, Mail, MapPin } from "lucide-react-native";
@@ -36,6 +38,8 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const {
     control,
@@ -51,13 +55,44 @@ export default function LoginScreen() {
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
-    console.log("Login data:", data);
-    // TODO: Implement actual login with Supabase
-    setTimeout(() => {
-      setIsLoading(false);
+    setAuthError(null);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: data.email.trim(),
+        password: data.password,
+      });
+
+      if (error) {
+        setAuthError(error.message);
+        return;
+      }
+
       router.replace("/(tabs)");
-    }, 1000);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+    setAuthError(null);
+    try {
+      const { error, canceled } = await signInWithGoogle();
+
+      if (error) {
+        setAuthError(error.message);
+        return;
+      }
+
+      if (!canceled) {
+        router.replace("/(tabs)");
+      }
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const isBusy = isLoading || isGoogleLoading;
 
   return (
     <KeyboardAvoidingView
@@ -175,11 +210,13 @@ export default function LoginScreen() {
             <Text style={styles.forgotPasswordText}>Forgot password?</Text>
           </TouchableOpacity>
 
+          {authError && <Text style={styles.errorMessage}>{authError}</Text>}
+
           {/* Login Button */}
           <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
+            style={[styles.button, isBusy && styles.buttonDisabled]}
             onPress={handleSubmit(onSubmit)}
-            disabled={isLoading}
+            disabled={isBusy}
             activeOpacity={0.8}
           >
             <Text style={styles.buttonText}>
@@ -195,11 +232,21 @@ export default function LoginScreen() {
           </View>
 
           {/* Social Login */}
-          <TouchableOpacity style={styles.socialButton} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={[
+              styles.socialButton,
+              isBusy && styles.socialButtonDisabled,
+            ]}
+            onPress={handleGoogleSignIn}
+            disabled={isBusy}
+            activeOpacity={0.7}
+          >
             <View style={styles.googleLogoContainer}>
               <GoogleLogo size={20} />
             </View>
-            <Text style={styles.socialButtonText}>Continue with Google</Text>
+            <Text style={styles.socialButtonText}>
+              {isGoogleLoading ? "Connecting..." : "Continue with Google"}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -303,6 +350,13 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginLeft: 4,
   },
+  errorMessage: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    color: "#EF4444",
+    marginBottom: 16,
+    textAlign: "center",
+  },
   forgotPassword: {
     alignSelf: "flex-end",
     marginBottom: 24,
@@ -358,6 +412,9 @@ const styles = StyleSheet.create({
     height: 52,
     borderWidth: 1,
     borderColor: "#E5E7EB",
+  },
+  socialButtonDisabled: {
+    opacity: 0.7,
   },
   googleLogoContainer: {
     marginRight: 12,
