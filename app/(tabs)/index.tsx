@@ -1,6 +1,7 @@
 import { CrimeMapView, DraggableMarker } from "@/src/features/map";
 import { supabase } from "@/src/lib/supabase";
 import { useAppTheme } from "@/src/lib/theme";
+import { LocateFixed } from "lucide-react-native";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -22,8 +23,9 @@ export default function MapScreen() {
   const { colors, theme } = useAppTheme();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarInitial, setAvatarInitial] = useState("U");
+  const [isFollowing, setIsFollowing] = useState(false);
   const [markerPosition, setMarkerPosition] = useState<[number, number]>(
-    DEFAULT_MARKER_POSITION
+    DEFAULT_MARKER_POSITION,
   );
 
   const setAvatarFromUser = (user?: SupabaseUser | null) => {
@@ -76,8 +78,11 @@ export default function MapScreen() {
       theme === "dark"
         ? "mapbox://styles/mapbox/dark-v11"
         : "mapbox://styles/mapbox/outdoors-v12",
-    [theme]
+    [theme],
   );
+  const compassTop = insets.top + 120;
+  const scaleBarBottom = 64 + insets.bottom;
+  const geolocateBottom = scaleBarBottom + 52;
 
   const handleMarkerDragEnd = (newPosition: [number, number]) => {
     setMarkerPosition(newPosition);
@@ -85,7 +90,13 @@ export default function MapScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <CrimeMapView styleURL={mapStyleURL}>
+      <CrimeMapView
+        styleURL={mapStyleURL}
+        followUserLocation={isFollowing}
+        followZoomLevel={15}
+        compassPosition={{ top: compassTop, right: 16 }}
+        scaleBarPosition={{ bottom: scaleBarBottom, right: 16 }}
+      >
         <DraggableMarker
           id="user-marker"
           coordinate={markerPosition}
@@ -127,6 +138,22 @@ export default function MapScreen() {
           </Pressable>
         </View>
       </View>
+      <Pressable
+        onPress={() => setIsFollowing((prev) => !prev)}
+        style={[
+          styles.geoButton,
+          {
+            bottom: geolocateBottom,
+            backgroundColor: isFollowing ? colors.primary : colors.surface,
+            shadowColor: colors.shadow,
+          },
+        ]}
+      >
+        <LocateFixed
+          size={20}
+          color={isFollowing ? "#FFFFFF" : colors.text}
+        />
+      </Pressable>
     </View>
   );
 }
@@ -180,5 +207,18 @@ const styles = StyleSheet.create({
   avatarInitial: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
+  },
+  geoButton: {
+    position: "absolute",
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 8,
   },
 });

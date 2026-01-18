@@ -4,8 +4,23 @@ import { StyleSheet, Text, View } from "react-native";
 interface MapViewProps {
   centerCoordinate?: [number, number];
   zoomLevel?: number;
+  pitch?: number;
+  styleURL?: string;
+  followUserLocation?: boolean;
+  followUserMode?: string;
+  followZoomLevel?: number;
+  compassEnabled?: boolean;
+  compassPosition?: OrnamentPosition;
+  scaleBarEnabled?: boolean;
+  scaleBarPosition?: OrnamentPosition;
   children?: React.ReactNode;
 }
+
+type OrnamentPosition =
+  | { top: number; left: number }
+  | { top: number; right: number }
+  | { bottom: number; left: number }
+  | { bottom: number; right: number };
 
 // Web fallback - Mapbox doesn't work on web with Metro bundler
 export function CrimeMapView({

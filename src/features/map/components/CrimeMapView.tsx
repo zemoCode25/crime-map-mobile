@@ -9,14 +9,34 @@ interface MapViewProps {
   zoomLevel?: number;
   pitch?: number;
   styleURL?: string;
+  followUserLocation?: boolean;
+  followUserMode?: Mapbox.UserTrackingMode;
+  followZoomLevel?: number;
+  compassEnabled?: boolean;
+  compassPosition?: OrnamentPosition;
+  scaleBarEnabled?: boolean;
+  scaleBarPosition?: OrnamentPosition;
   children?: React.ReactNode;
 }
+
+type OrnamentPosition =
+  | { top: number; left: number }
+  | { top: number; right: number }
+  | { bottom: number; left: number }
+  | { bottom: number; right: number };
 
 export function CrimeMapView({
   centerCoordinate = [121.0244, 14.4166], // Muntinlupa City default
   zoomLevel = 14,
   pitch = 45,
   styleURL,
+  followUserLocation = false,
+  followUserMode = Mapbox.UserTrackingMode.FollowWithHeading,
+  followZoomLevel = 15,
+  compassEnabled = true,
+  compassPosition,
+  scaleBarEnabled = true,
+  scaleBarPosition,
   children,
 }: MapViewProps) {
   return (
@@ -27,6 +47,11 @@ export function CrimeMapView({
         zoomEnabled={true}
         scrollEnabled={true}
         rotateEnabled={true}
+        compassEnabled={compassEnabled}
+        compassFadeWhenNorth={true}
+        compassPosition={compassPosition}
+        scaleBarEnabled={scaleBarEnabled}
+        scaleBarPosition={scaleBarPosition}
       >
         <Mapbox.RasterDemSource
           id="terrain-source"
@@ -42,6 +67,13 @@ export function CrimeMapView({
           pitch={pitch}
           animationMode="flyTo"
           animationDuration={2000}
+          followUserLocation={followUserLocation}
+          followUserMode={followUserMode}
+          followZoomLevel={followZoomLevel}
+        />
+        <Mapbox.UserLocation
+          renderMode={Mapbox.UserLocationRenderMode.Native}
+          showsUserHeadingIndicator={true}
         />
         {children}
       </Mapbox.MapView>
