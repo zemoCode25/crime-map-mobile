@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Bell, Map, User, Wrench } from "lucide-react-native";
+import { Bell, Map, Siren } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabLayout() {
@@ -8,11 +8,11 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: "#FACC15",
-        tabBarInactiveTintColor: "#9CA3AF",
+        tabBarActiveTintColor: "#F97316",
+        tabBarInactiveTintColor: "#6B7280",
         tabBarStyle: {
-          backgroundColor: "#1F2937",
-          borderTopColor: "#374151",
+          backgroundColor: "#FFFFFF",
+          borderTopColor: "#E5E7EB",
           height: 60 + insets.bottom,
           paddingBottom: 8 + insets.bottom,
           paddingTop: 8,
@@ -22,9 +22,9 @@ export default function TabLayout() {
           fontWeight: "500",
         },
         headerStyle: {
-          backgroundColor: "#1F2937",
+          backgroundColor: "#FFFFFF",
         },
-        headerTintColor: "#fff",
+        headerTintColor: "#111827",
         headerTitleStyle: {
           fontWeight: "bold",
         },
@@ -38,10 +38,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="services"
+        name="emergency"
         options={{
-          title: "Services",
-          tabBarIcon: ({ color, size }) => <Wrench size={size} color={color} />,
+          title: "Emergency",
+          tabBarIcon: ({ color, size }) => <Siren size={size} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -51,13 +51,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <Bell size={size} color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
-        }}
-      />
+      <Tabs.Screen name="profile" options={{ href: null }} />
     </Tabs>
   );
 }

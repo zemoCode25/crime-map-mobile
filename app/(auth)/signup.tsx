@@ -1,4 +1,6 @@
 import { GoogleLogo } from "@/src/components/GoogleLogo";
+import { signInWithGoogle } from "@/src/lib/auth";
+import { supabase } from "@/src/lib/supabase";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, router } from "expo-router";
 import {
@@ -204,11 +206,13 @@ export default function SignupScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
 
   const {
     control,
     handleSubmit,
-    watch,
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
@@ -220,17 +224,60 @@ export default function SignupScreen() {
     },
   });
 
-  const passwordValue = watch("password");
-
   const onSubmit = async (data: SignupFormData) => {
     setIsLoading(true);
-    console.log("Signup data:", data);
-    // TODO: Implement actual signup with Supabase
-    setTimeout(() => {
+    setAuthError(null);
+    setAuthNotice(null);
+    try {
+      const { data: signupData, error } = await supabase.auth.signUp({
+        email: data.email.trim(),
+        password: data.password,
+        options: {
+          data: {
+            full_name: data.fullName.trim(),
+          },
+        },
+      });
+
+      if (error) {
+        setAuthError(error.message);
+        return;
+      }
+
+      if (signupData.session) {
+        router.replace("/(tabs)");
+        return;
+      }
+
+      setAuthNotice(
+        "Check your email to confirm your account before signing in.",
+      );
+    } finally {
       setIsLoading(false);
-      router.replace("/(tabs)");
-    }, 1000);
+    }
   };
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+    setAuthError(null);
+    setAuthNotice(null);
+    try {
+      const { error, canceled } = await signInWithGoogle();
+
+      if (error) {
+        setAuthError(error.message);
+        return;
+      }
+
+      if (!canceled) {
+        router.replace("/(tabs)");
+      }
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const isBusy = isLoading || isGoogleLoading;
 
   return (
     <KeyboardAvoidingView
@@ -444,11 +491,16 @@ export default function SignupScreen() {
             <Text style={styles.termsLink}>Privacy Policy</Text>
           </Text>
 
+          {authError && <Text style={styles.errorMessage}>{authError}</Text>}
+          {authNotice && (
+            <Text style={styles.noticeMessage}>{authNotice}</Text>
+          )}
+
           {/* Signup Button */}
           <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
+            style={[styles.button, isBusy && styles.buttonDisabled]}
             onPress={handleSubmit(onSubmit)}
-            disabled={isLoading}
+            disabled={isBusy}
             activeOpacity={0.8}
           >
             <Text style={styles.buttonText}>
@@ -464,11 +516,21 @@ export default function SignupScreen() {
           </View>
 
           {/* Social Signup */}
-          <TouchableOpacity style={styles.socialButton} activeOpacity={0.7}>
+          <TouchableOpacity
+            style={[
+              styles.socialButton,
+              isBusy && styles.socialButtonDisabled,
+            ]}
+            onPress={handleGoogleSignIn}
+            disabled={isBusy}
+            activeOpacity={0.7}
+          >
             <View style={styles.googleLogoContainer}>
               <GoogleLogo size={20} />
             </View>
-            <Text style={styles.socialButtonText}>Continue with Google</Text>
+            <Text style={styles.socialButtonText}>
+              {isGoogleLoading ? "Connecting..." : "Continue with Google"}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -593,6 +655,20 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     color: "#F97316",
   },
+  errorMessage: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    color: "#EF4444",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  noticeMessage: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    color: "#16A34A",
+    marginBottom: 16,
+    textAlign: "center",
+  },
   button: {
     backgroundColor: "#F97316",
     borderRadius: 12,
@@ -639,6 +715,9 @@ const styles = StyleSheet.create({
     height: 52,
     borderWidth: 1,
     borderColor: "#E5E7EB",
+  },
+  socialButtonDisabled: {
+    opacity: 0.7,
   },
   googleLogoContainer: {
     marginRight: 12,

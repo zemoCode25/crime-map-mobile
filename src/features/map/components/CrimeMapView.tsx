@@ -19,7 +19,7 @@ export function CrimeMapView({
     <View style={styles.container}>
       <Mapbox.MapView
         style={styles.map}
-        styleURL="mapbox://styles/mapbox/dark-v11"
+        styleURL="mapbox://styles/mapbox/light-v11"
         zoomEnabled={true}
         scrollEnabled={true}
         rotateEnabled={true}
