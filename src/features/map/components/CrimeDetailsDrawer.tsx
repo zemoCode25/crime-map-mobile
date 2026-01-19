@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { Clock, MapPin, Shield, Sparkles } from "lucide-react-native";
 
 interface CrimeDetailsDrawerProps {
   crime: CrimeCaseWithRelations | null;
@@ -51,6 +52,13 @@ const sanitizeDetails = (value?: string | null) => {
   return text;
 };
 
+const formatLabel = (value: string) => {
+  return value
+    .split(" ")
+    .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+    .join(" ");
+};
+
 export function CrimeDetailsDrawer({
   crime,
   bottomOffset,
@@ -77,32 +85,36 @@ export function CrimeDetailsDrawer({
   );
   const startDragValue = useRef(0);
 
+  const animateTo = (toValue: number) => {
+    Animated.spring(translateY, {
+      toValue,
+      tension: 120,
+      friction: 20,
+      useNativeDriver: true,
+      overshootClamping: true,
+    }).start();
+  };
+
   const showPeek = (animated = true) => {
     setSnapState("peek");
     const config = {
       toValue: maxTranslateY,
-      duration: 220,
-      useNativeDriver: true,
     };
     animated
-      ? Animated.timing(translateY, config).start()
+      ? animateTo(config.toValue)
       : translateY.setValue(config.toValue);
   };
 
   const showExpanded = () => {
     setSnapState("expanded");
-    Animated.timing(translateY, {
-      toValue: 0,
-      duration: 220,
-      useNativeDriver: true,
-    }).start();
+    animateTo(0);
   };
 
   const hideSheet = () => {
     setSnapState("hidden");
     Animated.timing(translateY, {
       toValue: hiddenOffset,
-      duration: 200,
+      duration: 180,
       useNativeDriver: true,
     }).start(() => {
       onClose?.();
@@ -143,13 +155,16 @@ export function CrimeDetailsDrawer({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponder: () => false,
+        onStartShouldSetPanResponderCapture: () => false,
         onMoveShouldSetPanResponder: (_event, gesture) => {
-          return Math.abs(gesture.dy) > 4;
+          return Math.abs(gesture.dy) > 6 && Math.abs(gesture.dy) > Math.abs(gesture.dx);
         },
         onMoveShouldSetPanResponderCapture: (_event, gesture) => {
-          return Math.abs(gesture.dy) > 4;
+          return Math.abs(gesture.dy) > 6 && Math.abs(gesture.dy) > Math.abs(gesture.dx);
         },
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
         onPanResponderGrant: () => {
           translateY.stopAnimation((value) => {
             startDragValue.current = value;
@@ -159,7 +174,7 @@ export function CrimeDetailsDrawer({
           const nextValue = clamp(
             startDragValue.current + gesture.dy,
             0,
-            hiddenOffset,
+            maxTranslateY,
           );
           translateY.setValue(nextValue);
         },
@@ -173,19 +188,20 @@ export function CrimeDetailsDrawer({
             return;
           }
           const projected = startDragValue.current + gesture.dy + gesture.vy * 120;
-          if (projected <= maxTranslateY * 0.4) {
+          if (projected <= maxTranslateY * 0.5 || gesture.vy < -0.6) {
             showExpanded();
           } else {
             showPeek();
           }
         },
       }),
-    [hiddenOffset, maxTranslateY, snapState, translateY],
+    [maxTranslateY, snapState, translateY],
   );
 
   const crimeType =
     crime?.crime_type_info?.label ?? crime?.crime_type_info?.name ?? "Unknown";
   const status = crime?.case_status ?? "Unknown status";
+  const statusLabel = formatLabel(status);
   const incidentDate = formatDateTime(crime?.incident_datetime);
   const reportDate = formatDateTime(crime?.report_datetime);
   const barangayLabel = crime?.location?.barangay
@@ -198,6 +214,7 @@ export function CrimeDetailsDrawer({
   const locationText = locationLoading
     ? "Resolving location..."
     : locationError || locationLabel || "Location unavailable";
+  const caseNumber = crime?.case_number ? `Case ${crime.case_number}` : null;
 
   return (
     <Animated.View
@@ -221,55 +238,105 @@ export function CrimeDetailsDrawer({
       {crime ? (
         <>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.text }]}>{crimeType}</Text>
-            <Text style={[styles.subtitle, { color: colors.mutedText }]}>
-              {status} • {barangayLabel}
-            </Text>
-            <Text style={[styles.meta, { color: colors.mutedText }]}>
-              Incident: {incidentDate}
-            </Text>
-            <Text style={[styles.meta, { color: colors.mutedText }]}>
-              Reported: {reportDate}
-            </Text>
+            <View style={styles.titleRow}>
+              <Text style={[styles.title, { color: colors.text }]}>{crimeType}</Text>
+              <View style={[styles.statusChip, { backgroundColor: colors.primary }]}>
+                <Text style={styles.statusChipText}>{statusLabel}</Text>
+              </View>
+            </View>
+            {caseNumber && (
+              <Text style={[styles.caseNumber, { color: colors.mutedText }]}>
+                {caseNumber}
+              </Text>
+            )}
           </View>
 
-          <View style={styles.section}>
+          <View style={styles.infoGrid}>
+            <View style={styles.infoRow}>
+              <MapPin size={16} color={colors.primary} />
+              <Text style={[styles.infoText, { color: colors.text }]}>{barangayLabel}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Clock size={16} color={colors.mutedText} />
+              <Text style={[styles.infoText, { color: colors.mutedText }]}>
+                Incident: {incidentDate}
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Clock size={16} color={colors.mutedText} />
+              <Text style={[styles.infoText, { color: colors.mutedText }]}>
+                Reported: {reportDate}
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.sectionCard, { backgroundColor: colors.avatar }]}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Summary</Text>
             <Text style={[styles.sectionBody, { color: colors.mutedText }]}>
               {summary}
             </Text>
           </View>
 
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              AI Insights
-            </Text>
+          <View style={[styles.sectionCard, { backgroundColor: colors.avatar }]}>
+            <View style={styles.sectionTitleRow}>
+              <Sparkles size={16} color={colors.primary} />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>AI Insights</Text>
+            </View>
             <Text style={[styles.sectionBody, { color: colors.mutedText }]}>
               Coming soon.
             </Text>
           </View>
 
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Safety Tips
-            </Text>
+          <View style={[styles.sectionCard, { backgroundColor: colors.avatar }]}>
+            <View style={styles.sectionTitleRow}>
+              <Shield size={16} color={colors.primary} />
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Safety Tips</Text>
+            </View>
             <Text style={[styles.sectionBody, { color: colors.mutedText }]}>
               Coming soon.
             </Text>
           </View>
         </>
       ) : (
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>
-            Current Location
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedText }]}>
-            {locationText}
-          </Text>
-          <Text style={[styles.meta, { color: colors.mutedText }]}>
-            Coordinates: {coordsText}
-          </Text>
-        </View>
+        <>
+          <View style={styles.header}>
+            <View style={styles.titleRow}>
+              <Text style={[styles.title, { color: colors.text }]}>
+                Pinned Location
+              </Text>
+              <View style={[styles.statusChip, { backgroundColor: colors.primary }]}>
+                <Text style={styles.statusChipText}>Live</Text>
+              </View>
+            </View>
+            <Text style={[styles.subtitle, { color: colors.mutedText }]}>
+              {locationText}
+            </Text>
+          </View>
+
+          <View style={[styles.sectionCard, { backgroundColor: colors.avatar }]}>
+            <View style={styles.infoRow}>
+              <MapPin size={16} color={colors.primary} />
+              <Text style={[styles.infoText, { color: colors.text }]}>
+                {locationText}
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Clock size={16} color={colors.mutedText} />
+              <Text style={[styles.infoText, { color: colors.mutedText }]}>
+                Coordinates: {coordsText}
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.sectionCard, { backgroundColor: colors.avatar }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Tap a marker to view details
+            </Text>
+            <Text style={[styles.sectionBody, { color: colors.mutedText }]}>
+              Crime details, AI insights, and safety tips will appear here.
+            </Text>
+          </View>
+        </>
       )}
     </Animated.View>
   );
@@ -285,7 +352,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -6 },
     shadowOpacity: 0.15,
     shadowRadius: 16,
-    elevation: 12,
+    elevation: 20,
+    zIndex: 30,
   },
   handleArea: {
     alignItems: "center",
@@ -301,6 +369,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 8,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
   title: {
     fontSize: 18,
     fontFamily: "Inter_600SemiBold",
@@ -315,9 +389,49 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Inter_400Regular",
   },
+  caseNumber: {
+    marginTop: 6,
+    fontSize: 12,
+    fontFamily: "Inter_500Medium",
+  },
+  statusChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  statusChipText: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    color: "#FFFFFF",
+  },
+  infoGrid: {
+    paddingHorizontal: 16,
+    paddingBottom: 6,
+    gap: 8,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  infoText: {
+    fontSize: 13,
+    fontFamily: "Inter_500Medium",
+  },
   section: {
     paddingHorizontal: 16,
     paddingTop: 10,
+  },
+  sectionCard: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 12,
+  },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   sectionTitle: {
     fontSize: 14,
