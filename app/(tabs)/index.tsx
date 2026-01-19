@@ -1,4 +1,10 @@
 import { CrimeMapView, DraggableMarker } from "@/src/features/map";
+import {
+  SearchBar,
+  SuggestionsList,
+  useSearchSuggestions,
+  type SearchSuggestion,
+} from "@/src/features/search";
 import { useLocation } from "@/src/hooks";
 import { supabase } from "@/src/lib/supabase";
 import { useAppTheme } from "@/src/lib/theme";
@@ -7,11 +13,10 @@ import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
+  Keyboard,
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -28,6 +33,20 @@ export default function MapScreen() {
   const { coords, isLoading: isLoadingLocation, refreshLocation } = useLocation({
     enableHighAccuracy: true,
   });
+
+  // Search suggestions
+  const {
+    query,
+    setQuery,
+    isOpen: isSearchOpen,
+    suggestions,
+    isLoading: isSearchLoading,
+    error: searchError,
+    openDropdown,
+    closeDropdown,
+    selectSuggestion,
+    clearSearch,
+  } = useSearchSuggestions();
 
   // Avatar state
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -119,6 +138,44 @@ export default function MapScreen() {
     }
   };
 
+  // Handle search suggestion selection
+  const handleSelectSuggestion = async (suggestion: SearchSuggestion) => {
+    Keyboard.dismiss();
+    const coordinates = await selectSuggestion(suggestion);
+    if (coordinates) {
+      setMarkerPosition(coordinates);
+      setIsFollowing(false);
+    }
+  };
+
+  const handleSearchSubmit = async () => {
+    if (suggestions.length === 0) {
+      closeDropdown();
+      Keyboard.dismiss();
+      return;
+    }
+
+    const preferred =
+      query.length > 0
+        ? suggestions.find((item) => item.type === "search_result")
+        : suggestions[0];
+
+    if (preferred) {
+      await handleSelectSuggestion(preferred);
+    }
+  };
+
+  // Handle search focus
+  const handleSearchFocus = () => {
+    openDropdown();
+  };
+
+  // Handle clearing search
+  const handleClearSearch = () => {
+    clearSearch();
+    Keyboard.dismiss();
+  };
+
   // Determine map center - use marker position, then coords, then default
   const centerCoordinate = markerPosition ??
     (coords ? [coords.longitude, coords.latitude] as [number, number] : DEFAULT_POSITION);
@@ -157,42 +214,41 @@ export default function MapScreen() {
         </View>
       )}
 
-      {/* Top search bar */}
+      {/* Top search bar with suggestions */}
       <View
         pointerEvents="box-none"
         style={[styles.topBar, { paddingTop: insets.top + 12 }]}
       >
-        <View
-          style={[
-            styles.searchPill,
-            { backgroundColor: colors.surface, shadowColor: colors.shadow },
-          ]}
-        >
-          <Image
-            source={require("../../assets/images/icon.png")}
-            style={styles.logo}
-          />
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search places"
-            placeholderTextColor={colors.mutedText}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          <Pressable
-            onPress={handleProfilePress}
-            style={[styles.avatar, { backgroundColor: colors.avatar }]}
-          >
-            {avatarUrl ? (
-              <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
-            ) : (
-              <Text style={[styles.avatarInitial, { color: colors.text }]}>
-                {avatarInitial}
-              </Text>
-            )}
-          </Pressable>
-        </View>
+        <SearchBar
+          value={query}
+          onChangeText={setQuery}
+          onFocus={handleSearchFocus}
+          onSubmitEditing={handleSearchSubmit}
+          onClear={handleClearSearch}
+          avatarUrl={avatarUrl}
+          avatarInitial={avatarInitial}
+          onAvatarPress={handleProfilePress}
+        />
+        <SuggestionsList
+          suggestions={suggestions}
+          isLoading={isSearchLoading}
+          error={searchError}
+          onSelect={handleSelectSuggestion}
+          isVisible={isSearchOpen && (suggestions.length > 0 || isSearchLoading || query.length > 0)}
+          style={styles.suggestionsList}
+        />
       </View>
+
+      {/* Dismiss search overlay when tapping map */}
+      {isSearchOpen && (
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => {
+            closeDropdown();
+            Keyboard.dismiss();
+          }}
+        />
+      )}
 
       {/* Recenter button */}
       <Pressable
@@ -238,43 +294,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     zIndex: 10,
   },
-  searchPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 28,
-    height: 56,
-    paddingHorizontal: 14,
-    gap: 12,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 6,
-  },
-  logo: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: "Inter_500Medium",
-    fontSize: 15,
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarImage: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  avatarInitial: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 14,
+  suggestionsList: {
+    marginTop: 8,
   },
   geoButton: {
     position: "absolute",
