@@ -1,4 +1,8 @@
-import { CrimeMapView, DraggableMarker } from "@/src/features/map";
+import {
+  CrimeMapView,
+  DraggableMarker,
+  CrimeMarkersLayer,
+} from "@/src/features/map";
 import {
   SearchBar,
   SuggestionsList,
@@ -9,7 +13,10 @@ import {
   CrimeFiltersButton,
   CrimeFiltersPanel,
   useCrimeFilters,
+  useCrimeCases,
+  useCrimeTypes,
 } from "@/src/features/crime";
+import { BARANGAYS } from "@/constants/barangays";
 import { useLocation } from "@/src/hooks";
 import { supabase } from "@/src/lib/supabase";
 import { useAppTheme } from "@/src/lib/theme";
@@ -68,6 +75,66 @@ export default function MapScreen() {
     hasActiveFilters,
     activeFilterCount,
   } = useCrimeFilters();
+
+  // Crime data
+  const { data: crimeCases } = useCrimeCases();
+  const { data: crimeTypes } = useCrimeTypes();
+
+  // Filter crime cases based on selected filters
+  const filteredCrimes = useMemo(() => {
+    if (!crimeCases) return [];
+
+    return crimeCases.filter((crime) => {
+      // Filter by crime type
+      if (filters.crimeTypes.length > 0) {
+        if (!crime.crime_type || !filters.crimeTypes.includes(crime.crime_type)) {
+          return false;
+        }
+      }
+
+      // Filter by barangay - need to map barangay number to name
+      if (filters.barangays.length > 0) {
+        const barangayIndex = crime.location?.barangay;
+        if (barangayIndex == null) return false;
+        // Barangay is stored as index (1-based), map to value
+        const barangay = BARANGAYS[barangayIndex - 1];
+        if (!barangay || !filters.barangays.includes(barangay.value)) {
+          return false;
+        }
+      }
+
+      // Filter by status
+      if (filters.statuses.length > 0) {
+        if (!crime.case_status || !filters.statuses.includes(crime.case_status)) {
+          return false;
+        }
+      }
+
+      // Filter by time range
+      if (filters.timeRange) {
+        const incidentDate = crime.incident_datetime
+          ? new Date(crime.incident_datetime)
+          : null;
+        if (!incidentDate) return false;
+
+        const now = new Date();
+        const daysMap: Record<string, number> = {
+          "7d": 7,
+          "30d": 30,
+          "90d": 90,
+          "365d": 365,
+        };
+        const days = daysMap[filters.timeRange];
+        const cutoffDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+
+        if (incidentDate < cutoffDate) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [crimeCases, filters]);
 
   // Avatar state
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -233,6 +300,11 @@ export default function MapScreen() {
         compassPosition={{ top: compassTop, right: 16 }}
         scaleBarPosition={{ bottom: scaleBarBottom, right: 16 }}
       >
+        {/* Crime markers layer */}
+        <CrimeMarkersLayer
+          crimes={filteredCrimes}
+          crimeTypes={crimeTypes ?? []}
+        />
         {markerPosition && (
           <DraggableMarker
             id="user-marker"

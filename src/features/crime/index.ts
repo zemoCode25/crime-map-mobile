@@ -4,6 +4,7 @@ export {
   getCrimeCases,
   getCrimeTypes,
   type CrimeCase,
+  type CrimeCaseWithRelations,
   type CrimeType,
   type Location,
 } from "./services/crime-service";
