@@ -2,6 +2,7 @@ import {
   CrimeMapView,
   DraggableMarker,
   CrimeMarkersLayer,
+  CrimeDetailsDrawer,
 } from "@/src/features/map";
 import {
   SearchBar,
@@ -15,6 +16,7 @@ import {
   useCrimeFilters,
   useCrimeCases,
   useCrimeTypes,
+  type CrimeCaseWithRelations,
 } from "@/src/features/crime";
 import { BARANGAYS } from "@/constants/barangays";
 import { useLocation } from "@/src/hooks";
@@ -31,16 +33,24 @@ import {
   Text,
   View,
 } from "react-native";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 // Default position: Muntinlupa City center [longitude, latitude]
 const DEFAULT_POSITION: [number, number] = [121.0244, 14.4166];
 const PIN_CAMERA_ANIMATION_DURATION_MS = 900;
+const SEARCH_BAR_HEIGHT = 56;
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const { colors, theme } = useAppTheme();
+  const [searchBarHeight, setSearchBarHeight] = useState(SEARCH_BAR_HEIGHT);
+  const [containerHeight, setContainerHeight] = useState(0);
+  const [topBarLayoutY, setTopBarLayoutY] = useState(0);
+  const [searchBarLayoutY, setSearchBarLayoutY] = useState(0);
+  const containerRef = useRef<View>(null);
 
   // Location from expo-location
   const { coords, isLoading: isLoadingLocation, refreshLocation } = useLocation({
@@ -139,6 +149,7 @@ export default function MapScreen() {
   // Avatar state
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarInitial, setAvatarInitial] = useState("U");
+  const [selectedCrime, setSelectedCrime] = useState<CrimeCaseWithRelations | null>(null);
 
   // Map state
   const [isFollowing, setIsFollowing] = useState(true);
@@ -220,6 +231,16 @@ export default function MapScreen() {
   const compassTop = insets.top + 120;
   const scaleBarBottom = 64 + insets.bottom;
   const geolocateBottom = scaleBarBottom + 52;
+  const topBarPaddingTop = insets.top + 12;
+  const searchBarBottom = useMemo(() => {
+    if (searchBarHeight <= 0) {
+      return topBarPaddingTop;
+    }
+    if (searchBarLayoutY <= 1) {
+      return topBarLayoutY + topBarPaddingTop + searchBarHeight;
+    }
+    return topBarLayoutY + searchBarLayoutY + searchBarHeight;
+  }, [searchBarHeight, searchBarLayoutY, topBarLayoutY, topBarPaddingTop]);
 
   // When marker is dragged, stop following and update position
   const handleMarkerDragEnd = (newPosition: [number, number]) => {
@@ -282,12 +303,62 @@ export default function MapScreen() {
     Keyboard.dismiss();
   };
 
+  useEffect(() => {
+    if (!__DEV__) return;
+    console.log("[DrawerMetrics]", {
+      containerHeight,
+      topBarLayoutY,
+      searchBarLayoutY,
+      searchBarHeight,
+      topBarPaddingTop,
+      insetsTop: insets.top,
+      tabBarHeight,
+      searchBarBottom,
+    });
+  }, [
+    containerHeight,
+    insets.top,
+    searchBarBottom,
+    searchBarHeight,
+    searchBarLayoutY,
+    tabBarHeight,
+    topBarLayoutY,
+    topBarPaddingTop,
+  ]);
+
+  const handleCrimeMarkerPress = (crime: CrimeCaseWithRelations) => {
+    const lat = crime.location?.lat;
+    const long = crime.location?.long;
+    if (lat != null && long != null) {
+      setMarkerPosition([long, lat]);
+      setPinCameraAnimationActive(true);
+      if (pinCameraAnimationTimer.current) {
+        clearTimeout(pinCameraAnimationTimer.current);
+      }
+      pinCameraAnimationTimer.current = setTimeout(() => {
+        setPinCameraAnimationActive(false);
+        pinCameraAnimationTimer.current = null;
+      }, PIN_CAMERA_ANIMATION_DURATION_MS);
+    }
+    setIsFollowing(false);
+    setSelectedCrime(crime);
+  };
+
   // Determine map center - use marker position, then coords, then default
   const centerCoordinate = markerPosition ??
     (coords ? [coords.longitude, coords.latitude] as [number, number] : DEFAULT_POSITION);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View
+      ref={containerRef}
+      style={[styles.container, { backgroundColor: colors.background }]}
+      onLayout={(event) => {
+        const nextHeight = event.nativeEvent.layout.height;
+        if (nextHeight > 0 && nextHeight !== containerHeight) {
+          setContainerHeight(nextHeight);
+        }
+      }}
+    >
       <CrimeMapView
         styleURL={mapStyleURL}
         centerCoordinate={centerCoordinate}
@@ -304,6 +375,7 @@ export default function MapScreen() {
         <CrimeMarkersLayer
           crimes={filteredCrimes}
           crimeTypes={crimeTypes ?? []}
+          onMarkerPress={handleCrimeMarkerPress}
         />
         {markerPosition && (
           <DraggableMarker
@@ -313,6 +385,14 @@ export default function MapScreen() {
           />
         )}
       </CrimeMapView>
+
+      <CrimeDetailsDrawer
+        crime={selectedCrime}
+        bottomOffset={0}
+        topOffset={searchBarBottom}
+        containerHeight={containerHeight}
+        onClose={() => setSelectedCrime(null)}
+      />
 
       {/* Loading overlay while getting location */}
       {isLoadingLocation && (
@@ -333,17 +413,30 @@ export default function MapScreen() {
       <View
         pointerEvents="box-none"
         style={[styles.topBar, { paddingTop: insets.top + 12 }]}
+        onLayout={(event) => {
+          setTopBarLayoutY(event.nativeEvent.layout.y);
+        }}
       >
-        <SearchBar
-          value={query}
-          onChangeText={setQuery}
-          onFocus={handleSearchFocus}
-          onSubmitEditing={handleSearchSubmit}
-          onClear={handleClearSearch}
-          avatarUrl={avatarUrl}
-          avatarInitial={avatarInitial}
-          onAvatarPress={handleProfilePress}
-        />
+        <View
+          onLayout={(event) => {
+            const nextHeight = event.nativeEvent.layout.height;
+            if (nextHeight > 0 && nextHeight !== searchBarHeight) {
+              setSearchBarHeight(nextHeight);
+            }
+            setSearchBarLayoutY(event.nativeEvent.layout.y);
+          }}
+        >
+          <SearchBar
+            value={query}
+            onChangeText={setQuery}
+            onFocus={handleSearchFocus}
+            onSubmitEditing={handleSearchSubmit}
+            onClear={handleClearSearch}
+            avatarUrl={avatarUrl}
+            avatarInitial={avatarInitial}
+            onAvatarPress={handleProfilePress}
+          />
+        </View>
 
         {/* Filter toggle button */}
         <View style={styles.filterButtonRow}>

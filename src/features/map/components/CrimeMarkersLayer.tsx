@@ -92,7 +92,7 @@ export function CrimeMarkersLayer({
   const handlePress = (event: any) => {
     const feature = event.features?.[0];
     if (feature && onMarkerPress) {
-      const crimeId = feature.properties?.id;
+      const crimeId = Number(feature.properties?.id);
       const crime = crimes.find((c) => c.id === crimeId);
       if (crime) {
         onMarkerPress(crime);
