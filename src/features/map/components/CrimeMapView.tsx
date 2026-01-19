@@ -9,6 +9,8 @@ interface MapViewProps {
   zoomLevel?: number;
   pitch?: number;
   styleURL?: string;
+  cameraAnimationMode?: "flyTo" | "easeTo" | "linearTo" | "moveTo";
+  cameraAnimationDuration?: number;
   followUserLocation?: boolean;
   followUserMode?: Mapbox.UserTrackingMode;
   followZoomLevel?: number;
@@ -27,9 +29,11 @@ type OrnamentPosition =
 
 export function CrimeMapView({
   centerCoordinate = [121.0244, 14.4166], // Muntinlupa City default
-  zoomLevel = 14,
+  zoomLevel,
   pitch = 45,
   styleURL,
+  cameraAnimationMode = "flyTo",
+  cameraAnimationDuration = 2000,
   followUserLocation = false,
   followUserMode = Mapbox.UserTrackingMode.FollowWithHeading,
   followZoomLevel = 15,
@@ -65,8 +69,8 @@ export function CrimeMapView({
           zoomLevel={zoomLevel}
           centerCoordinate={centerCoordinate}
           pitch={pitch}
-          animationMode="flyTo"
-          animationDuration={2000}
+          animationMode={cameraAnimationMode}
+          animationDuration={cameraAnimationDuration}
           followUserLocation={followUserLocation}
           followUserMode={followUserMode}
           followZoomLevel={followZoomLevel}

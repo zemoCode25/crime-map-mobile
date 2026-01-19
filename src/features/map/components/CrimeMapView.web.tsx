@@ -6,6 +6,8 @@ interface MapViewProps {
   zoomLevel?: number;
   pitch?: number;
   styleURL?: string;
+  cameraAnimationMode?: "flyTo" | "easeTo" | "linearTo" | "moveTo";
+  cameraAnimationDuration?: number;
   followUserLocation?: boolean;
   followUserMode?: string;
   followZoomLevel?: number;

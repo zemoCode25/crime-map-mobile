@@ -10,7 +10,7 @@ import { supabase } from "@/src/lib/supabase";
 import { useAppTheme } from "@/src/lib/theme";
 import { LocateFixed } from "lucide-react-native";
 import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
@@ -24,6 +24,7 @@ import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 // Default position: Muntinlupa City center [longitude, latitude]
 const DEFAULT_POSITION: [number, number] = [121.0244, 14.4166];
+const PIN_CAMERA_ANIMATION_DURATION_MS = 900;
 
 export default function MapScreen() {
   const insets = useSafeAreaInsets();
@@ -55,6 +56,8 @@ export default function MapScreen() {
   // Map state
   const [isFollowing, setIsFollowing] = useState(true);
   const [markerPosition, setMarkerPosition] = useState<[number, number] | null>(null);
+  const [pinCameraAnimationActive, setPinCameraAnimationActive] = useState(false);
+  const pinCameraAnimationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Set marker position when location is available
   useEffect(() => {
@@ -106,6 +109,14 @@ export default function MapScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (pinCameraAnimationTimer.current) {
+        clearTimeout(pinCameraAnimationTimer.current);
+      }
+    };
+  }, []);
+
   const handleProfilePress = () => {
     router.push("/(tabs)/profile");
   };
@@ -125,8 +136,16 @@ export default function MapScreen() {
 
   // When marker is dragged, stop following and update position
   const handleMarkerDragEnd = (newPosition: [number, number]) => {
+    if (pinCameraAnimationTimer.current) {
+      clearTimeout(pinCameraAnimationTimer.current);
+    }
+    setPinCameraAnimationActive(true);
     setMarkerPosition(newPosition);
     setIsFollowing(false);
+    pinCameraAnimationTimer.current = setTimeout(() => {
+      setPinCameraAnimationActive(false);
+      pinCameraAnimationTimer.current = null;
+    }, PIN_CAMERA_ANIMATION_DURATION_MS);
   };
 
   // Recenter to current location
@@ -185,6 +204,10 @@ export default function MapScreen() {
       <CrimeMapView
         styleURL={mapStyleURL}
         centerCoordinate={centerCoordinate}
+        cameraAnimationMode={pinCameraAnimationActive ? "easeTo" : undefined}
+        cameraAnimationDuration={
+          pinCameraAnimationActive ? PIN_CAMERA_ANIMATION_DURATION_MS : undefined
+        }
         followUserLocation={isFollowing}
         followZoomLevel={16}
         compassPosition={{ top: compassTop, right: 16 }}
