@@ -6,6 +6,7 @@ export {
   fetchSuggestions,
   retrievePlace,
   generateSessionToken,
+  reverseGeocode,
 } from "./services/mapbox-search-service";
 
 // Hooks

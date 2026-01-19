@@ -15,6 +15,10 @@ interface CrimeDetailsDrawerProps {
   bottomOffset: number;
   topOffset: number;
   containerHeight: number;
+  locationLabel?: string | null;
+  locationLoading?: boolean;
+  locationError?: string | null;
+  coordinates?: [number, number] | null;
   onClose?: () => void;
 }
 
@@ -52,6 +56,10 @@ export function CrimeDetailsDrawer({
   bottomOffset,
   topOffset,
   containerHeight,
+  locationLabel,
+  locationLoading,
+  locationError,
+  coordinates,
   onClose,
 }: CrimeDetailsDrawerProps) {
   const { colors } = useAppTheme();
@@ -65,7 +73,7 @@ export function CrimeDetailsDrawer({
 
   const translateY = useRef(new Animated.Value(hiddenOffset)).current;
   const [snapState, setSnapState] = useState<"hidden" | "peek" | "expanded">(
-    "hidden",
+    "peek",
   );
   const startDragValue = useRef(0);
 
@@ -104,10 +112,12 @@ export function CrimeDetailsDrawer({
   useEffect(() => {
     if (crime) {
       showPeek();
-    } else {
-      hideSheet();
+      return;
     }
-  }, [crime]);
+    if (snapState === "hidden") {
+      showPeek(false);
+    }
+  }, [crime, snapState]);
 
   useEffect(() => {
     if (!__DEV__) return;
@@ -182,10 +192,12 @@ export function CrimeDetailsDrawer({
     ? BARANGAYS[crime.location.barangay - 1]?.label ?? "Unknown barangay"
     : "Unknown barangay";
   const summary = sanitizeDetails(crime?.description);
-
-  if (!crime && snapState === "hidden") {
-    return null;
-  }
+  const coordsText = coordinates
+    ? `${coordinates[1].toFixed(5)}, ${coordinates[0].toFixed(5)}`
+    : "Unknown coordinates";
+  const locationText = locationLoading
+    ? "Resolving location..."
+    : locationError || locationLabel || "Location unavailable";
 
   return (
     <Animated.View
@@ -206,43 +218,59 @@ export function CrimeDetailsDrawer({
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
       </View>
 
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>{crimeType}</Text>
-        <Text style={[styles.subtitle, { color: colors.mutedText }]}>
-          {status} • {barangayLabel}
-        </Text>
-        <Text style={[styles.meta, { color: colors.mutedText }]}>
-          Incident: {incidentDate}
-        </Text>
-        <Text style={[styles.meta, { color: colors.mutedText }]}>
-          Reported: {reportDate}
-        </Text>
-      </View>
+      {crime ? (
+        <>
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: colors.text }]}>{crimeType}</Text>
+            <Text style={[styles.subtitle, { color: colors.mutedText }]}>
+              {status} • {barangayLabel}
+            </Text>
+            <Text style={[styles.meta, { color: colors.mutedText }]}>
+              Incident: {incidentDate}
+            </Text>
+            <Text style={[styles.meta, { color: colors.mutedText }]}>
+              Reported: {reportDate}
+            </Text>
+          </View>
 
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Summary</Text>
-        <Text style={[styles.sectionBody, { color: colors.mutedText }]}>
-          {summary}
-        </Text>
-      </View>
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Summary</Text>
+            <Text style={[styles.sectionBody, { color: colors.mutedText }]}>
+              {summary}
+            </Text>
+          </View>
 
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          AI Insights
-        </Text>
-        <Text style={[styles.sectionBody, { color: colors.mutedText }]}>
-          Coming soon.
-        </Text>
-      </View>
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              AI Insights
+            </Text>
+            <Text style={[styles.sectionBody, { color: colors.mutedText }]}>
+              Coming soon.
+            </Text>
+          </View>
 
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          Safety Tips
-        </Text>
-        <Text style={[styles.sectionBody, { color: colors.mutedText }]}>
-          Coming soon.
-        </Text>
-      </View>
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Safety Tips
+            </Text>
+            <Text style={[styles.sectionBody, { color: colors.mutedText }]}>
+              Coming soon.
+            </Text>
+          </View>
+        </>
+      ) : (
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Current Location
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.mutedText }]}>
+            {locationText}
+          </Text>
+          <Text style={[styles.meta, { color: colors.mutedText }]}>
+            Coordinates: {coordsText}
+          </Text>
+        </View>
+      )}
     </Animated.View>
   );
 }

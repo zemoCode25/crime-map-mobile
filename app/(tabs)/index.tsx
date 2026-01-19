@@ -8,6 +8,7 @@ import {
   SearchBar,
   SuggestionsList,
   useSearchSuggestions,
+  reverseGeocode,
   type SearchSuggestion,
 } from "@/src/features/search";
 import {
@@ -51,6 +52,10 @@ export default function MapScreen() {
   const [topBarLayoutY, setTopBarLayoutY] = useState(0);
   const [searchBarLayoutY, setSearchBarLayoutY] = useState(0);
   const containerRef = useRef<View>(null);
+
+  const [pinLocationLabel, setPinLocationLabel] = useState<string | null>(null);
+  const [pinLocationLoading, setPinLocationLoading] = useState(false);
+  const [pinLocationError, setPinLocationError] = useState<string | null>(null);
 
   // Location from expo-location
   const { coords, isLoading: isLoadingLocation, refreshLocation } = useLocation({
@@ -304,6 +309,46 @@ export default function MapScreen() {
   };
 
   useEffect(() => {
+    if (!markerPosition) {
+      setPinLocationLabel(null);
+      setPinLocationError(null);
+      setPinLocationLoading(false);
+      return;
+    }
+
+    const [longitude, latitude] = markerPosition;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setPinLocationLoading(true);
+      setPinLocationError(null);
+      try {
+        const label = await reverseGeocode({
+          longitude,
+          latitude,
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted) {
+          setPinLocationLabel(label);
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setPinLocationLabel(null);
+          setPinLocationError("Location unavailable");
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setPinLocationLoading(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [markerPosition]);
+
+  useEffect(() => {
     if (!__DEV__) return;
     console.log("[DrawerMetrics]", {
       containerHeight,
@@ -391,6 +436,10 @@ export default function MapScreen() {
         bottomOffset={0}
         topOffset={searchBarBottom}
         containerHeight={containerHeight}
+        locationLabel={pinLocationLabel}
+        locationLoading={pinLocationLoading}
+        locationError={pinLocationError}
+        coordinates={markerPosition}
         onClose={() => setSelectedCrime(null)}
       />
 
