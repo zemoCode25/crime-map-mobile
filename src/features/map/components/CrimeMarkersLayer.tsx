@@ -12,6 +12,31 @@ interface CrimeMarkersLayerProps {
   onMarkerPress?: (crime: CrimeCaseWithRelations) => void;
 }
 
+const NAMED_COLOR_MAP: Record<string, string> = {
+  white: "#FFFFFF",
+  black: "#111827",
+  red: "#EF4444",
+  orange: "#F97316",
+  yellow: "#FACC15",
+  green: "#22C55E",
+  blue: "#3B82F6",
+  violet: "#8B5CF6",
+  purple: "#A855F7",
+  pink: "#EC4899",
+  gray: "#6B7280",
+  grey: "#6B7280",
+};
+
+const normalizeMapColor = (value?: string | null) => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^#([0-9a-fA-F]{3,4}){1,2}$/.test(trimmed)) return trimmed;
+  if (/^rgba?\(/i.test(trimmed)) return trimmed;
+  const lower = trimmed.toLowerCase();
+  return NAMED_COLOR_MAP[lower] ?? null;
+};
+
 export function CrimeMarkersLayer({
   crimes,
   crimeTypes,
@@ -23,7 +48,8 @@ export function CrimeMarkersLayer({
     if (crimeTypes) {
       crimeTypes.forEach((type, index) => {
         // Use crime type's own color if available, otherwise use fallback from palette
-        map[type.id] = type.color ?? CRIME_TYPE_COLORS[index % CRIME_TYPE_COLORS.length];
+        const normalizedColor = normalizeMapColor(type.color);
+        map[type.id] = normalizedColor ?? CRIME_TYPE_COLORS[index % CRIME_TYPE_COLORS.length];
       });
     }
     return map;
@@ -84,6 +110,33 @@ export function CrimeMarkersLayer({
       shape={geoJsonData}
       onPress={handlePress}
     >
+      <Mapbox.HeatmapLayer
+        id="crime-heatmap"
+        style={{
+          heatmapIntensity: ["interpolate", ["linear"], ["zoom"], 9, 0.9, 12, 1.3, 15, 1.8, 18, 2.4, 21, 3.0],
+          heatmapRadius: ["interpolate", ["linear"], ["zoom"], 9, 14, 12, 22, 15, 34, 18, 48, 21, 60],
+          heatmapOpacity: ["interpolate", ["linear"], ["zoom"], 9, 0.7, 14, 0.85, 21, 0.95],
+          heatmapColor: [
+            "interpolate",
+            ["linear"],
+            ["heatmap-density"],
+            0,
+            "rgba(255,255,0,0)",
+            0.15,
+            "rgba(255,235,0,0.45)",
+            0.35,
+            "rgba(255,180,0,0.7)",
+            0.55,
+            "rgba(255,120,0,0.88)",
+            0.7,
+            "rgba(255,70,0,0.96)",
+            0.85,
+            "rgba(230,30,30,0.98)",
+            1,
+            "rgba(220,20,20,1)",
+          ],
+        }}
+      />
       {/* Outer circle (border effect) */}
       <Mapbox.CircleLayer
         id="crime-markers-outer"
