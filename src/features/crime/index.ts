@@ -15,3 +15,13 @@ export {
   useCrimeCases,
   useCrimeTypes,
 } from "./hooks/use-crime";
+
+export {
+  useCrimeFilters,
+  type CrimeFilters,
+  type TimeRange,
+  TIME_RANGE_OPTIONS,
+} from "./hooks/use-crime-filters";
+
+// Components
+export { CrimeFiltersButton, CrimeFiltersPanel } from "./components";

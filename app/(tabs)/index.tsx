@@ -5,6 +5,11 @@ import {
   useSearchSuggestions,
   type SearchSuggestion,
 } from "@/src/features/search";
+import {
+  CrimeFiltersButton,
+  CrimeFiltersPanel,
+  useCrimeFilters,
+} from "@/src/features/crime";
 import { useLocation } from "@/src/hooks";
 import { supabase } from "@/src/lib/supabase";
 import { useAppTheme } from "@/src/lib/theme";
@@ -48,6 +53,21 @@ export default function MapScreen() {
     selectSuggestion,
     clearSearch,
   } = useSearchSuggestions();
+
+  // Crime filters
+  const {
+    filters,
+    isOpen: isFiltersOpen,
+    toggleOpen: toggleFilters,
+    closeFilters,
+    setCrimeTypes,
+    setBarangays,
+    setStatuses,
+    setTimeRange,
+    clearFilters,
+    hasActiveFilters,
+    activeFilterCount,
+  } = useCrimeFilters();
 
   // Avatar state
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -237,7 +257,7 @@ export default function MapScreen() {
         </View>
       )}
 
-      {/* Top search bar with suggestions */}
+      {/* Top search bar with suggestions and filters */}
       <View
         pointerEvents="box-none"
         style={[styles.topBar, { paddingTop: insets.top + 12 }]}
@@ -252,22 +272,49 @@ export default function MapScreen() {
           avatarInitial={avatarInitial}
           onAvatarPress={handleProfilePress}
         />
-        <SuggestionsList
-          suggestions={suggestions}
-          isLoading={isSearchLoading}
-          error={searchError}
-          onSelect={handleSelectSuggestion}
-          isVisible={isSearchOpen && (suggestions.length > 0 || isSearchLoading || query.length > 0)}
-          style={styles.suggestionsList}
-        />
+
+        {/* Filter toggle button */}
+        <View style={styles.filterButtonRow}>
+          <CrimeFiltersButton
+            isActive={isFiltersOpen}
+            activeFilterCount={activeFilterCount}
+            onPress={toggleFilters}
+          />
+        </View>
+
+        {/* Filter panel */}
+        {isFiltersOpen && (
+          <CrimeFiltersPanel
+            filters={filters}
+            onCrimeTypesChange={setCrimeTypes}
+            onBarangaysChange={setBarangays}
+            onStatusesChange={setStatuses}
+            onTimeRangeChange={setTimeRange}
+            onClearFilters={clearFilters}
+            hasActiveFilters={hasActiveFilters}
+          />
+        )}
+
+        {/* Search suggestions (shown when not filtering) */}
+        {!isFiltersOpen && (
+          <SuggestionsList
+            suggestions={suggestions}
+            isLoading={isSearchLoading}
+            error={searchError}
+            onSelect={handleSelectSuggestion}
+            isVisible={isSearchOpen && (suggestions.length > 0 || isSearchLoading || query.length > 0)}
+            style={styles.suggestionsList}
+          />
+        )}
       </View>
 
-      {/* Dismiss search overlay when tapping map */}
-      {isSearchOpen && (
+      {/* Dismiss search/filters overlay when tapping map */}
+      {(isSearchOpen || isFiltersOpen) && (
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={() => {
             closeDropdown();
+            closeFilters();
             Keyboard.dismiss();
           }}
         />
@@ -316,6 +363,9 @@ const styles = StyleSheet.create({
     top: 0,
     paddingHorizontal: 16,
     zIndex: 10,
+  },
+  filterButtonRow: {
+    marginTop: 10,
   },
   suggestionsList: {
     marginTop: 8,
